@@ -1,0 +1,3 @@
+project_id  = "your-project-id" # replace with your preferred project ID
+region      = "asia-southeast2"
+environment = "dev"
