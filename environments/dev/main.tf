@@ -1,3 +1,4 @@
+# Setup VPC networking
 module "networking" {
   source = "../../modules/networking"
 
@@ -53,6 +54,7 @@ module "networking" {
   nat_region = var.region
 }
 
+# Setup compute instances
 module "compute" {
   source = "../../modules/compute"
 
@@ -82,6 +84,37 @@ module "compute" {
     #   subnetwork          = module.networking.subnets["subnet-01"].self_link
     #   tags                = ["ssh"]
     #   enable_external_ip  = false
+    # }
+  }
+}
+
+# Setup Cloud Storage buckets
+module "storage" {
+  source = "../../modules/storage"
+
+  project_id = var.project_id
+  labels     = { environment = var.environment }
+
+  # Add storage buckets as needed
+  buckets = {
+    app-data = {
+      name               = "${var.project_id}-${var.environment}-data" # Unique bucket name
+      location           = var.region
+      storage_class      = "STANDARD"
+      versioning_enabled = true # Enable versioning for important data
+      force_destroy      = true # Set false in production
+      labels             = {
+        environment = var.environment
+        purpose     = "app-data"
+      }
+    }
+    # Example for another bucket:
+    # logs = {
+    #   name               = "${var.project_id}-${var.environment}-logs"
+    #   location           = var.region
+    #   storage_class      = "STANDARD"
+    #   versioning_enabled = false
+    #   force_destroy      = true
     # }
   }
 }
