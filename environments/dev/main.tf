@@ -52,3 +52,36 @@ module "networking" {
   create_nat = true
   nat_region = var.region
 }
+
+module "compute" {
+  source = "../../modules/compute"
+
+  project_id = var.project_id
+  network    = module.networking.network_self_link
+
+  # Add compute instances as needed
+  instances = {
+    web-01 = {
+      name                = "${var.environment}-web-01"
+      machine_type        = "e2-micro"
+      zone                = "${var.region}-a"
+      subnetwork          = module.networking.subnets["subnet-01"].self_link
+      tags                = ["ssh", "http-server"]
+      enable_external_ip  = true
+      labels             = {
+        environment = var.environment
+        role        = "web-server"
+      }
+      
+    }
+    # Example for another instance:
+    # app-01 = {
+    #   name                = "${var.environment}-app-01"
+    #   machine_type        = "e2-small"
+    #   zone                = "${var.region}-b"
+    #   subnetwork          = module.networking.subnets["subnet-01"].self_link
+    #   tags                = ["ssh"]
+    #   enable_external_ip  = false
+    # }
+  }
+}
