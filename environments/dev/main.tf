@@ -12,6 +12,25 @@ module "networking" {
       subnet_region         = var.region
       subnet_private_access = true
     }
+    
+    # GKE subnet with secondary ranges for pods and services
+    gke-subnet = {
+      subnet_name           = "${var.environment}-gke-subnet"
+      subnet_ip             = "10.0.10.0/24"
+      subnet_region         = var.region
+      subnet_private_access = true
+      
+      secondary_ranges = [
+        {
+          range_name    = "pods"
+          ip_cidr_range = "10.1.0.0/16"
+        },
+        {
+          range_name    = "services"
+          ip_cidr_range = "10.2.0.0/20"
+        }
+      ]
+    }
   }
 
   firewall_rules = {
@@ -135,3 +154,123 @@ module "storage" {
     # }
   }
 }
+
+# IAM setup for GKE
+module "iam" {
+  source = "../../modules/iam"
+
+  project_id = var.project_id
+
+  service_accounts = {
+    gke-nodes = {
+      account_id   = "${var.environment}-gke-nodes"
+      display_name = "GKE Nodes Service Account"
+      description  = "Service account for GKE node pools"
+    }
+    app-backend = {
+      account_id   = "${var.environment}-app-backend"
+      display_name = "Application Backend Service Account"
+      description  = "Service account for backend application workloads"
+    }
+  }
+
+  # Give GKE nodes logging and monitoring permissions
+  project_iam_bindings = {
+    gke-logging = {
+      role   = "roles/logging.logWriter"
+      member = "serviceAccount:${var.environment}-gke-nodes@${var.project_id}.iam.gserviceaccount.com"
+    }
+    gke-monitoring = {
+      role   = "roles/monitoring.metricWriter"
+      member = "serviceAccount:${var.environment}-gke-nodes@${var.project_id}.iam.gserviceaccount.com"
+    }
+    gke-metric-viewer = {
+      role   = "roles/monitoring.viewer"
+      member = "serviceAccount:${var.environment}-gke-nodes@${var.project_id}.iam.gserviceaccount.com"
+    }
+    # Let app backend read from storage
+    app-storage-viewer = {
+      role   = "roles/storage.objectViewer"
+      member = "serviceAccount:${var.environment}-app-backend@${var.project_id}.iam.gserviceaccount.com"
+    }
+  }
+
+  # Workload Identity binding - connects K8s SA to Google SA
+  workload_identity_bindings = {
+    app-backend = {
+      service_account_id = "projects/${var.project_id}/serviceAccounts/${var.environment}-app-backend@${var.project_id}.iam.gserviceaccount.com"
+      namespace          = "default"
+      ksa_name           = "app-backend-ksa"
+    }
+  }
+}
+
+# GKE Private Cluster - uncomment to deploy
+# module "gke_private" {
+#   source = "../../modules/gke-private"
+#
+#   project_id   = var.project_id
+#   cluster_name = "${var.environment}-private-cluster"
+#   location     = var.region
+#
+#   network    = module.networking.network_self_link
+#   subnetwork = module.networking.subnets["gke-subnet"].self_link
+#
+#   pods_secondary_range_name     = "pods"
+#   services_secondary_range_name = "services"
+#
+#   master_ipv4_cidr_block       = "172.16.0.0/28"
+#   enable_private_endpoint      = false
+#   master_global_access_enabled = true
+#
+#   # Update with your IP for kubectl access
+#   master_authorized_networks = [
+#     {
+#       cidr_block   = "10.0.0.0/8"
+#       display_name = "Internal VPC"
+#     }
+#     # {
+#     #   cidr_block   = "YOUR_IP/32"
+#     #   display_name = "My IP"
+#     # }
+#   ]
+#
+#   kubernetes_version = "1.28"
+#   release_channel    = "REGULAR"
+#
+#   enable_shielded_nodes       = true
+#   enable_binary_authorization = false
+#   network_policy              = true
+#
+#   node_pools = {
+#     general = {
+#       name               = "general-pool"
+#       machine_type       = "e2-standard-2"
+#       initial_node_count = 1
+#       disk_size_gb       = 50
+#       service_account    = module.iam.service_account_emails["gke-nodes"]
+#
+#       autoscaling = {
+#         min_node_count = 1
+#         max_node_count = 3
+#       }
+#
+#       auto_repair  = true
+#       auto_upgrade = true
+#
+#       labels = {
+#         environment   = var.environment
+#         workload_type = "general"
+#       }
+#     }
+#   }
+#
+#   maintenance_window = {
+#     start_time = "03:00"
+#   }
+#
+#   labels = {
+#     environment = var.environment
+#     managed_by  = "terraform"
+#   }
+# }

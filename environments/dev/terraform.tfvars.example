@@ -1,3 +1,11 @@
-project_id  = "your-project-id" # replace with your preferred project ID
+# Development Environment Configuration
+# Copy to terraform.tfvars and update with your values
+
+project_id  = "your-project-id"
 region      = "asia-southeast2"
 environment = "dev"
+
+# Notes:
+# - IAM module is enabled by default (creates service accounts for GKE)
+# - GKE cluster is commented out in main.tf - uncomment to deploy
+# - Update master_authorized_networks in main.tf with your IP before deploying GKE
