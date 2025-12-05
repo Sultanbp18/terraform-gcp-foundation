@@ -21,7 +21,15 @@ resource "google_compute_instance" "instances" {
       content {}
     }
   }
-
   tags = each.value.tags
   labels = each.value.labels
+
+  # Use this block to ignore changes to certain attributes after the instance is created
+  # lifecycle {
+  #   ignore_changes = [
+  #     machine_type,
+  #     metadata,
+  #     boot_disk[0].initialize_params[0].image
+  #   ]
+  # }
 }
