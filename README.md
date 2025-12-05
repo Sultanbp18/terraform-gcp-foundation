@@ -14,7 +14,10 @@ terraform-gcp-foundation/
 ├── modules/            # Reusable infrastructure modules
 │   ├── networking/    # VPC, subnets, firewall, NAT
 │   ├── compute/       # GCE instances and groups
-│   └── storage/       # GCS buckets
+│   ├── storage/       # GCS buckets
+│   ├── iam/           # Service accounts and IAM bindings
+│   ├── gke-private/   # Private GKE clusters (production)
+│   └── gke-public/    # Public GKE clusters (limited use)
 └── environments/      # Environment-specific configs
     ├── dev/          # Development
     ├── staging/      # Staging
@@ -119,6 +122,111 @@ module "storage" {
 
 [Full documentation](modules/storage/README.md)
 
+### IAM Module
+
+Manages service accounts, IAM bindings, custom roles, and Workload Identity for GKE.
+
+**Example:**
+```hcl
+module "iam" {
+  source = "../../modules/iam"
+  
+  project_id = "my-project"
+  
+  service_accounts = {
+    gke-app = {
+      account_id   = "gke-app-sa"
+      display_name = "GKE Application Service Account"
+    }
+  }
+  
+  workload_identity_bindings = {
+    app = {
+      service_account_id = "projects/my-project/serviceAccounts/gke-app-sa@my-project.iam.gserviceaccount.com"
+      namespace          = "default"
+      ksa_name           = "app-ksa"
+    }
+  }
+}
+```
+
+[Full documentation](modules/iam/README.md)
+
+### GKE Private Cluster Module
+
+Creates production-ready private GKE clusters with enhanced security and Workload Identity.
+
+**Example:**
+```hcl
+module "gke_private" {
+  source = "../../modules/gke-private"
+  
+  project_id   = "my-project"
+  cluster_name = "prod-private-cluster"
+  location     = "asia-southeast2"
+  
+  network    = module.networking.network_self_link
+  subnetwork = module.networking.subnets["gke-subnet"].self_link
+  
+  pods_secondary_range_name     = "pods"
+  services_secondary_range_name = "services"
+  
+  node_pools = {
+    default = {
+      name         = "default-pool"
+      machine_type = "e2-standard-4"
+      autoscaling = {
+        min_node_count = 1
+        max_node_count = 5
+      }
+    }
+  }
+}
+```
+
+[Full documentation](modules/gke-private/README.md)
+
+### GKE Public Cluster Module
+
+⚠️ **For development/testing only.** Creates public GKE clusters with nodes accessible from the internet.
+
+**Example:**
+```hcl
+module "gke_public" {
+  source = "../../modules/gke-public"
+  
+  project_id   = "my-dev-project"
+  cluster_name = "dev-public-cluster"
+  location     = "asia-southeast2"
+  
+  network    = module.networking.network_self_link
+  subnetwork = module.networking.subnets["gke-subnet"].self_link
+  
+  pods_secondary_range_name     = "pods"
+  services_secondary_range_name = "services"
+  
+  master_authorized_networks = [
+    {
+      cidr_block   = "203.0.113.0/24"
+      display_name = "Office Network"
+    }
+  ]
+  
+  node_pools = {
+    default = {
+      name         = "default-pool"
+      machine_type = "e2-medium"
+      autoscaling = {
+        min_node_count = 1
+        max_node_count = 3
+      }
+    }
+  }
+}
+```
+
+[Full documentation](modules/gke-public/README.md)
+
 ## Environments
 
 Each environment (dev, staging, prod) has its own:
@@ -165,10 +273,17 @@ terraform apply
 Enable these APIs before deploying:
 
 ```bash
+# Core APIs
 gcloud services enable compute.googleapis.com
 gcloud services enable storage-api.googleapis.com
 gcloud services enable cloudkms.googleapis.com
 gcloud services enable cloudresourcemanager.googleapis.com
+
+# For GKE and IAM modules
+gcloud services enable container.googleapis.com
+gcloud services enable iam.googleapis.com
+gcloud services enable logging.googleapis.com
+gcloud services enable monitoring.googleapis.com
 ```
 
 ## Usage Examples
