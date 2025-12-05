@@ -29,7 +29,8 @@ resource "google_compute_instance" "instances" {
   #   ignore_changes = [
   #     machine_type,
   #     metadata,
-  #     boot_disk[0].initialize_params[0].image
+  #     boot_disk[0].initialize_params[0].image,
+  #     service_account,
   #   ]
   # }
 }

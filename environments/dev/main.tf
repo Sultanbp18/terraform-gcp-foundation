@@ -78,31 +78,21 @@ module "compute" {
         environment = var.environment
         role        = "web-server"
       }
+    }
 
-    }
-    dev-testing = {
-      name               = "${var.environment}-testing"
-      machine_type       = "e2-small"
-      zone               = "${var.region}-a"
-      subnetwork         = module.networking.subnets["subnet-01"].self_link
-      tags               = ["ssh", "http-server"]
-      enable_external_ip = true
-      labels = {
-        environment = var.environment
-        role        = "web-server"
-      }
-      service_account = {
-        email = "84443983999-compute@developer.gserviceaccount.com"
-        scopes = [
-          "https://www.googleapis.com/auth/devstorage.read_only",
-          "https://www.googleapis.com/auth/logging.write",
-          "https://www.googleapis.com/auth/monitoring.write",
-          "https://www.googleapis.com/auth/service.management.readonly",
-          "https://www.googleapis.com/auth/servicecontrol",
-          "https://www.googleapis.com/auth/trace.append",
-        ]
-      }
-    }
+    # Testing import instance
+    # dev-testing = {
+    #   name               = "${var.environment}-testing"
+    #   machine_type       = "e2-small"
+    #   zone               = "${var.region}-a"
+    #   subnetwork         = module.networking.subnets["subnet-01"].self_link
+    #   tags               = ["ssh", "http-server"]
+    #   enable_external_ip = true
+    #   labels = {
+    #     environment = var.environment
+    #     role        = "web-server"
+    #   }
+    # }
     # Example for another instance:
     # app-01 = {
     #   name                = "${var.environment}-app-01"
